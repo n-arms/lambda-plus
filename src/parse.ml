@@ -2,6 +2,7 @@ open Base
 
 type t = {rest: char list; pos: int}
 type parseError = string
+type 'a parser = t -> ('a, parseError) result*t
 
 type expr =
     | Num of num
@@ -18,6 +19,7 @@ let from_string s =
     for i = (let open String in length s) - 1 downto 0 do
         out := s.[i]::!out done;
         !out
+
 let from_char_list l = 
     let open List in
     fold l ~init:"" ~f:(fun acc x ->
@@ -39,12 +41,34 @@ let to_string {rest; pos} =
     " with leftover "^
     (from_char_list rest)
 
-let rec chars c {rest; pos} = 
+let chars c {rest; pos} =
     let open Base.Poly in
-    match (c, rest) with
-    | (ch::ct, th::rest) when ch = th -> chars ct {rest; pos = pos + 1}
-    | ([], _) -> (true, {rest; pos})
-    | _ -> (false, {rest; pos})
+    let rec is_match a b =
+        match (a, b) with
+        | (hd1::tl1, hd2::tl2) when hd1 = hd2 -> is_match tl1 tl2
+        | ([], l) -> Some l
+        | _ -> None
+    in
+    let open List in
+    match is_match c rest with
+    | Some l -> (Ok c, {rest = l; pos = pos + (length c)})
+    | None -> (Error "chars failed to match", {rest;pos})
+
+let (>>=) p f state = 
+    match p state with
+    | (Ok a, state) -> f a state
+    | (Error e, _) -> (Error e, state)
+
+let (>>|) p f state =
+    match p state with
+    | (Ok a, state) -> (Ok (f a), state)
+    | (Error e, state) -> (Error e, state)
+
+let ( *>) a b =
+    a >>= (fun _ -> b)
+
+let (<*) a b =
+    a >>= (fun out -> b >>| (fun _ -> out))
 
 let rec many p s =
     match p s with
@@ -54,20 +78,37 @@ let rec many p s =
             (l >>= (fun l -> Ok (r::l)), s)
     | _ -> (Ok [], s)
 
-let many1 p s =
-    match p s with
-    | (Ok out, s) -> 
-            let open Result in 
-            let (l, s) = many p s in
-            (l >>= (fun l -> Ok (out::l)), s)
-    | (Error e, s) -> (Error e, s)
+let many1 p =
+    p >>= (fun out ->
+        (many p) >>| (fun l -> out::l))
+
 
 let select pred = function
     | {rest = hd::tl; pos} when pred hd -> (Ok hd, {rest = tl; pos = pos+1})
     | s -> (Error "predicate failed to match", s)
 
-let parse_arg state = 
+let parse_arg =
     let open Char in
-    let (out, state) = many1 (select is_alpha) state in
-    let open Result in
-    (out >>= (fun c -> Ok (from_char_list c)), state)
+    (many1 (select is_alpha)) >>| from_char_list
+
+let parse_num =
+    let open Char in
+    let open Int in
+    (many1 (select is_digit)) >>| (fun c ->
+        c |> from_char_list |> of_string)
+let rec parse_func state =
+    (let open Char in
+    (chars ('\\'::[]))
+    *> parse_arg
+    <* (many (select is_whitespace))
+    <* (chars ('-'::'>'::[]))
+    <* (many (select is_whitespace))
+    >>= fun a ->
+        parse_expr >>| fun e -> (a, e)) state
+and parse_expr state =
+    match parse_func state with
+    | (Ok f, state) -> (Ok (Func f), state)
+    | _ -> (match parse_arg state with
+    | (Ok a, state) -> (Ok (Arg a), state)
+    | _ -> (Error "failed to parse expr", state))
+    
