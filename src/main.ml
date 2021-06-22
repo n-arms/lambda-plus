@@ -9,11 +9,5 @@ let print_parse_result show (out, state) =
     | Error e -> "ERROR! ["^(from_parse_error e)^"] ")
     |> print_endline
 
-let result = parse_arg (make "123 argB")
-let () = print_parse_result (fun x -> from_expr (Arg x)) result
-
-let result = parse_num (make "123 arg")
-let () = print_parse_result (fun x -> from_expr (Num x)) result
-
-let result = parse_expr (make "\\a -> b")
+let result = parse_expr (make "(\\y -> (\\f -> f (x x)) \\f -> f (x x)) fib 42" )
 let () = print_parse_result from_expr result

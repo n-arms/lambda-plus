@@ -6,11 +6,13 @@ type arg
 type num
 type app
 type func
+type op
 type expr =
     | Num of num
     | App of app
     | Func of func
     | Arg of arg
+    | Op of op
 type 'a parser = t -> ('a, parseError) result*t
 
 
@@ -30,8 +32,4 @@ val many : 'a parser -> 'a list parser
 val many1 : 'a parser -> 'a list parser
 val select : (char -> bool) -> char parser
 
-val parse_arg : arg parser
-val parse_num : num parser
-val parse_func : t -> (func, parseError) result*t
-val parse_expr : t -> (expr, parseError) result*t
-(*val parse_app : t -> (app, parseError) result*t*)
+val parse_expr : expr parser
