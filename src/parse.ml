@@ -1,26 +1,10 @@
 open Base
+open Expr
 
 type t = {rest: char list; pos: int}
 type parseError = string
 type 'a parser = t -> ('a, parseError) result*t
 
-type expr =
-    | Num of num
-    | App of app
-    | Func of func
-    | Arg of arg
-    | Op of op
-and num = int
-and app = expr * expr
-and func = string * expr
-and arg = string
-and op =
-    | UnaryMinus
-    | Sub
-    | Add
-    | Div
-    | Mul
-    | Mod
 
 let from_string s =
     let out = ref [] in
@@ -34,21 +18,6 @@ let from_char_list l =
         acc^(let open Char in to_string x))
 
 let from_parse_error p = p
-
-let from_op = function
-    | UnaryMinus -> "~"
-    | Sub -> "-"
-    | Add -> "+"
-    | Div -> "/"
-    | Mul -> "*"
-    | Mod -> "%"
-
-let rec from_expr = function
-    | Num i -> (let open Int in to_string i)
-    | App (e1, e2) -> "("^(from_expr e1)^" "^(from_expr e2)^")"
-    | Func (a, e) -> "(\\"^a^" -> "^(from_expr e)^")"
-    | Arg a -> a
-    | Op o -> (from_op o)
 
 let make s = {rest = from_string s; pos = 1}
 
@@ -132,10 +101,10 @@ let rec parse_func state =
     <* (chars ('-'::'>'::[]))
     <* (many (select is_whitespace))
     >>= fun a ->
-        parse_expr >>| fun e -> (a, e)) state
+        parse_expr >>| fun e -> Func (a, e)) state
 and parse_non_app state =
     match parse_func state with
-    | (Ok f, state) -> (Ok (Func f), state)
+    | (Ok f, state) -> (Ok f, state)
     | _ -> (match parse_arg state with
     | (Ok a, state) -> (Ok (Arg a), state)
     | _ -> (match parse_paren state with

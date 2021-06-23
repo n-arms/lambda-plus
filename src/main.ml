@@ -1,6 +1,7 @@
 open Stdio
 open Parse
 open Base
+open Expr
 
 let print_parse_result show (out, state) =
     ("with state "^(to_string state)^" ")
@@ -9,5 +10,5 @@ let print_parse_result show (out, state) =
     | Error e -> "ERROR! ["^(from_parse_error e)^"] ")
     |> print_endline
 
-let result = parse_expr (make "(\\y -> (\\f -> f (x x)) \\f -> f (x x)) fib 42" )
-let () = print_parse_result from_expr result
+let result = parse_expr (make "(\\y -> (\\f -> f (x x)) \\f -> f (x x)) fib 42")
+let () = print_parse_result string_of_expr result
