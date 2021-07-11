@@ -3,7 +3,7 @@ open Expr
 
 type t
 type parseError
-type 'a parser = t -> ('a, parseError) result*t
+type 'a parser = t -> ('a, parseError) Result.t*t
 
 
 val chars : char list -> char list parser

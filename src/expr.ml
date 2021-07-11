@@ -14,6 +14,7 @@ type expr =
     | Func of string * expr
     | Arg of string
     | Op of op
+    | Let of string * expr * expr
 
 
 let string_of_op = function
@@ -32,4 +33,5 @@ let rec string_of_expr = function
     | Func (s, e) -> "(\\"^s^" -> "^(string_of_expr e)^")"
     | Arg s -> s
     | Op o -> (string_of_op o)
+    | Let (s, e1, e2) -> ("let "^s^" = "^(string_of_expr e1)^" in "^(string_of_expr e2))
 
