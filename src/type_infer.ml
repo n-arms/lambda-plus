@@ -8,11 +8,12 @@ let type_of te =
     | AFunc (_, _, t) -> t
     | AApp (_, _, t) -> t
     | AArg (_, t) -> t
-    | AOp _ -> TEArrow (TEInt, TEInt)
+    | AOp UnaryMinus -> TEArrow (TEInt, TEInt)
+    | AOp _ ->  TEArrow (TEInt, TEArrow (TEInt, TEInt))
 
-let code = ref (64)
+let code = ref (96)
 let next_type_var () = code := !code + 1; String.of_char (Char.of_int_exn !code)
-let reset_type_vars () = code := 64
+let reset_type_vars () = code := 96
 
 let annotate e =
     let (h: (string, expr_type) Hashtbl.t) = Hashtbl.create (module String) in
@@ -53,5 +54,7 @@ let infer_type e =
     reset_type_vars();
     let te = annotate e in
     let cl = collect [te] [] in
-    let s = Type_unify.unify cl in
-    Type_unify.apply s (type_of te)
+    let open Result in
+    (Type_unify.unify cl)
+    >>| fun s ->
+        Type_unify.apply s (type_of te)

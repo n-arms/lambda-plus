@@ -1,4 +1,3 @@
-open Expr
 open Typed_expr
 open Base
 
@@ -17,24 +16,31 @@ let rec subst s x t =
     | TEGeneric y -> if (String.equal x y) then s else t 
     | TEArrow (u, v) -> TEArrow (subst s x u, subst s x v)
 
-let rec apply s t =
+let apply s t =
     List.fold_right s ~f:(fun (x, e) -> subst e x) ~init:t
+
+type typing_error = string
+let string_of_typing_error e = e
 
 let rec unify_one s t =
     match (s, t) with
-    | (TEGeneric x, TEGeneric y) -> let open String in if x = y then [] else [(x, t)]
+    | (TEGeneric x, TEGeneric y) -> Ok (let open String in if x = y then [] else [(x, t)])
     | (TEArrow (x, y), TEArrow (u, v)) -> unify [(x, u); (y, v)]
-    | ((TEGeneric x, (TEArrow (u, v) as z)) | ((TEArrow (u, v) as z), TEGeneric x)) ->
+    | ((TEGeneric x, (TEArrow _ as z)) | ((TEArrow _ as z), TEGeneric x)) ->
             if occurs x z
-            then failwith "not unifiable: infinite type"
-            else [(x, z)]
+            then Error "not unifiable: infinite type"
+            else Ok [(x, z)]
     | (TEGeneric x, TEInt) | (TEInt, TEGeneric x) ->
-            [(x, TEInt)]
+            Ok [(x, TEInt)]
     | (TEArrow _, TEInt) | (TEInt, TEArrow _) ->
-            failwith "not unifiable: int and function"
+            Error "not unifiable: int and function"
+    | (TEInt, TEInt) -> Ok []
+
 and unify = function
-    | [] -> []
+    | [] -> (Ok [])
     | (x, y) :: t -> 
-            let t2: (string * expr_type) list = unify t in
-            let t1: (substitution) = unify_one (apply t2 x) (apply t2 y) in
-            t1 @ t2
+            let open Result in
+            (unify t)
+            >>= fun t2 ->
+                (unify_one (apply t2 x) (apply t2 y))
+                >>= fun t1 -> Ok (t1 @ t2)

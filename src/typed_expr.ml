@@ -8,7 +8,7 @@ type expr_type =
 
 let rec string_of_expr_type = function
     | TEInt -> "Num"
-    | TEGeneric s -> "<gen "^s^">"
+    | TEGeneric s -> "'"^s
     | TEArrow (t1, t2) -> 
             "("^
             (string_of_expr_type t1)^
