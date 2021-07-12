@@ -1,8 +1,8 @@
 open Parse
 open Stdio
 open Base
-let result = parse_expr (make (Lex.lex "\\a -> \\b -> (\\c -> b) a" ))
-(*
+let result = parse_expr (make (Lex.lex "let a = b in let c = d in e" ))
+    (*
 let () = 
     match result with
     | Ok out, _ -> (
