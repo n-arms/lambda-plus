@@ -1,44 +1,19 @@
 open Base
 open Expr
 
-type t = {rest: char list; pos: int}
+type t = {rest: Lex.token list; pos: int}
 type parseError = string
 type 'a parser = t -> ('a, parseError) Result.t*t
 
-
-let from_string s =
-    let out = ref [] in
-    for i = (let open String in length s) - 1 downto 0 do
-        out := s.[i]::!out done;
-        !out
-
-let from_char_list l = 
-    let open List in
-    fold l ~init:"" ~f:(fun acc x ->
-        acc^(let open Char in to_string x))
-
 let from_parse_error p = p
 
-let make s = {rest = from_string s; pos = 1}
+let make l = {rest = l; pos = 0}
 
 let to_string {rest; pos} =
     "parsed to pos "^
     (let open Int in to_string pos)^
     " with leftover "^
-    (from_char_list rest)
-
-let chars c {rest; pos} =
-    let open Base.Poly in
-    let rec is_match a b =
-        match (a, b) with
-        | (hd1::tl1, hd2::tl2) when hd1 = hd2 -> is_match tl1 tl2
-        | ([], l) -> Some l
-        | _ -> None
-    in
-    let open List in
-    match is_match c rest with
-    | Some l -> (Ok c, {rest = l; pos = pos + (length c)})
-    | None -> (Error ("chars \""^(from_char_list c)^"\" failed to match with \""^(from_char_list rest)^"\""), {rest;pos})
+    (List.fold rest ~init:"" ~f:(fun s c -> s^(Lex.to_string c)))
 
 let (>>=) p f state = 
     match p state with
@@ -55,6 +30,10 @@ let ( *>) a b =
 
 let (<*) a b =
     a >>= (fun out -> b >>| (fun _ -> out))
+
+let token t = function
+    | {rest = hd::tl; pos} when let open Poly in (hd = t) -> (Ok hd, {rest=tl; pos=pos+1})
+    | s -> Error ("failed to match token "^(Lex.to_string t)), s
 
 let rec many p s =
     match p s with
@@ -73,33 +52,32 @@ let select pred = function
     | {rest = hd::tl; pos} when pred hd -> (Ok hd, {rest = tl; pos = pos+1})
     | s -> (Error "predicate failed to match", s)
 
-let parse_arg =
-    let open Char in
-    (many1 (select is_alpha)) >>| from_char_list
+let parse_arg = 
+    select (function Lex.Arg _ -> true | _ -> false)
+    >>| (function Lex.Arg a -> a | _ -> "")
 
 let parse_num =
-    let open Char in
-    let open Int in
-    (many1 (select is_digit)) >>| (fun c ->
-        c |> from_char_list |> of_string)
+    select (function Lex.Num _ -> true | _ -> false)
+    >>| (function Lex.Num n -> (Int.of_string n) | _ -> 0)
 
 let parse_op {rest;pos} =
     match rest with
-    | '~'::tl -> (Ok UnaryMinus, {rest = tl; pos = pos + 1})
-    | '-'::tl -> (Ok Sub, {rest = tl; pos = pos + 1})
-    | '+'::tl -> (Ok Add, {rest = tl; pos = pos + 1})
-    | '*'::tl -> (Ok Mul, {rest = tl; pos = pos + 1})
-    | '/'::tl -> (Ok Div, {rest = tl; pos = pos + 1})
-    | '%'::tl -> (Ok Mod, {rest = tl; pos = pos + 1})
-    | _ -> (Error "failed to parse operator", {rest;pos})
+    | Lex.Op o::tl -> (
+        let old_state = {rest;pos} in
+        let new_state = {rest=tl;pos=pos+1} in
+        match o with
+        | Lex.Times -> (Ok Mul), new_state
+        | Lex.Plus -> (Ok Add), new_state
+        | Lex.Minus -> (Ok Sub), new_state
+        | Lex.UnaryMinus -> (Ok UnaryMinus), new_state
+        | Lex.Slash -> (Ok Div), new_state
+        | _ -> (Error "did not find op token"), old_state)
+    | _ -> (Error "did not find op token", {rest;pos})
 
 let rec parse_func state =
-    (let open Char in
-    (chars ('\\'::[]))
+    ((token (Lex.Op Lex.Lambda))
     *> parse_arg
-    <* (many (select is_whitespace))
-    <* (chars ('-'::'>'::[]))
-    <* (many (select is_whitespace))
+    <* (token (Lex.Op Lex.Arrow))
     >>= fun a ->
         parse_expr >>| fun e -> Func (a, e)) state
 and parse_non_app state =
@@ -120,12 +98,12 @@ and parse_expr state =
     let term = ref (parse_non_app state) in
     while (
         match !term with
-        |(Ok v, _) -> true
+        |(Ok _, _) -> true
         | _ -> false
-    )do
+    ) do
         let (current, state) = !term in
         terms := current::!terms;
-        term := ((many (select is_whitespace)) *> parse_non_app) state
+        term := parse_non_app state
     done;
     let open List in
     let open Result in
@@ -137,16 +115,26 @@ and parse_expr state =
     | [hd] -> (hd, new_state)
     | [] -> (Error "failed to parse expr", state)
 and parse_paren state =
-    ((chars ('('::[]))
+    ((token Lex.LPar)
     *> parse_expr
-    <* (chars (')'::[]))) state
+    <* (token Lex.RPar)) state
 and parse_let state =
+    (*
     ((chars ('l'::'e'::'t'::[]))
     *> parse_arg
     <* (chars ['='])
     >>| fun s -> (
         parse_expr
         <* (chars ('i'::'n'::[]))
+        >>| fun e ->
+            parse_expr
+            >>| fun e2 -> Ok (Let (s, e, e2)))) state*)
+    ((token (Lex.Op Lex.Let))
+    *> parse_arg
+    <* (token (Lex.Op Lex.Equals))
+    >>| fun s -> (
+        parse_expr
+        <* (token (Lex.Op Lex.In))
         >>| fun e ->
             parse_expr
             >>| fun e2 -> Ok (Let (s, e, e2)))) state

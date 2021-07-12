@@ -7,6 +7,8 @@ type op =
     | UnaryMinus
     | Slash
     | Lambda 
+    | Let
+    | In
 
 type token =
     | Op of op

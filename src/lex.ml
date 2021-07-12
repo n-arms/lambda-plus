@@ -9,6 +9,8 @@ type op =
     | UnaryMinus
     | Slash
     | Lambda
+    | Let
+    | In
 
 let to_string_op = function
     | Arrow -> "->"
@@ -19,6 +21,8 @@ let to_string_op = function
     | UnaryMinus -> "~"
     | Slash -> "/"
     | Lambda -> "\\"
+    | Let -> "let"
+    | In -> "in"
 
 type token =
     | Op of op
@@ -56,6 +60,8 @@ let lex s =
         | '/'::tl -> Op Slash::(lex' tl)
         | '\\'::tl -> Op Lambda::(lex' tl)
         | ' '::tl | '\n'::tl -> lex' tl
+        | 'l'::'e'::'t'::tl -> Op Let::(lex' tl)
+        | 'i'::'n'::tl -> Op In::(lex' tl)
         | hd::tl when Char.is_digit hd -> 
                 let out, rest = get_while Char.is_digit (hd::tl)
                 in
