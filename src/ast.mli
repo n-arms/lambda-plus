@@ -10,6 +10,7 @@ type op =
     | Div
     | Mul
     | Mod
+    | Fix
 
 type expr =
     | Num of int
@@ -18,6 +19,7 @@ type expr =
     | Arg of var_name
     | Op of op
     | Let of var_name * expr * expr
+    | LetRec of var_name * expr * expr
 
 type mono_type =
     | TVar of type_var_name

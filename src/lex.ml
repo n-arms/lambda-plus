@@ -11,6 +11,8 @@ type op =
     | Lambda
     | Let
     | In
+    | Rec
+    | Fix
 
 let to_string_op = function
     | Arrow -> "->"
@@ -23,6 +25,8 @@ let to_string_op = function
     | Lambda -> "\\"
     | Let -> "let"
     | In -> "in"
+    | Rec -> "rec"
+    | Fix -> "fix"
 
 type token =
     | Op of op
@@ -62,6 +66,8 @@ let lex s =
         | ' '::tl | '\n'::tl -> lex' tl
         | 'l'::'e'::'t'::tl -> Op Let::(lex' tl)
         | 'i'::'n'::tl -> Op In::(lex' tl)
+        | 'r'::'e'::'c'::tl -> Op Rec::(lex' tl)
+        | 'f'::'i'::'x'::tl -> Op Fix::(lex' tl)
         | hd::tl when Char.is_digit hd -> 
                 let out, rest = get_while Char.is_digit (hd::tl)
                 in

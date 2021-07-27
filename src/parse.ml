@@ -71,6 +71,7 @@ let parse_op {rest;pos} =
         | Lex.Minus -> (Ok Sub), new_state
         | Lex.UnaryMinus -> (Ok UnaryMinus), new_state
         | Lex.Slash -> (Ok Div), new_state
+        | Lex.Fix -> (Ok Fix), new_state
         | _ -> (Error "did not find op token"), old_state)
     | _ -> (Error "did not find op token", {rest;pos})
 
@@ -125,12 +126,14 @@ and parse_paren state =
     *> parse_expr
     <* (token Lex.RPar)) state
 and parse_let (state : t) : (expr, parseError) Result.t*t =
-    ((token (Lex.Op Lex.Let))
-    *> parse_arg
+    ((fun state -> (match ((token (Lex.Op Lex.Let)) <* (token (Lex.Op Lex.Rec))) state with
+    | Ok _, state -> Ok ((fun x e1 e2 -> LetRec (x, e1, e2))), state
+    | Error _, _ -> (((token (Lex.Op Lex.Let)) >>| (fun _ x e1 e2 -> Let(x, e1, e2))) state)))
+    >>= fun f -> ((parse_arg
     <* (token (Lex.Op Lex.Equals))
     >>= fun s -> (
         parse_expr
         <* (token (Lex.Op Lex.In))
         >>= fun e -> (
             parse_expr
-            >>| fun e2 -> Let (s, e, e2)))) state
+            >>| fun e2 -> f s e e2))))) state

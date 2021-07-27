@@ -10,6 +10,7 @@ type op =
     | Div
     | Mul
     | Mod
+    | Fix
 
 type expr =
     | Num of int
@@ -18,6 +19,7 @@ type expr =
     | Arg of var_name
     | Op of op
     | Let of var_name * expr * expr
+    | LetRec of var_name * expr * expr
 
 type mono_type =
     | TVar of type_var_name
@@ -37,6 +39,7 @@ let string_of_op = function
     | Div -> "/"
     | Mul -> "*"
     | Mod -> "%"
+    | Fix -> "fix"
 
 let string_of_var_name vn = Int.to_string vn
 
@@ -47,6 +50,7 @@ let rec string_of_expr = function
     | Arg a -> string_of_var_name a
     | Op o -> string_of_op o
     | Let (a, e, b) -> "let " ^ (string_of_var_name a) ^ " = " ^ (string_of_expr e) ^ " in " ^ (string_of_expr b)
+    | LetRec (a, e, b) -> "let rec " ^ (string_of_var_name a) ^ " = " ^ (string_of_expr e) ^ " in " ^ (string_of_expr b)
 
 let rec string_of_mono_type = function
     | TVar t -> Int.to_string t

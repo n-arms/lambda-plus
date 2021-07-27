@@ -9,6 +9,8 @@ type op =
     | Lambda 
     | Let
     | In
+    | Rec
+    | Fix
 
 type token =
     | Op of op
