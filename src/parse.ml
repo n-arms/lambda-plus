@@ -1,5 +1,5 @@
 open Base
-open Expr
+open Ast
 
 type t = {rest: Lex.token list; pos: int}
 type parseError = string
@@ -54,7 +54,7 @@ let select pred = function
 
 let parse_arg = 
     select (function Lex.Arg _ -> true | _ -> false)
-    >>| (function Lex.Arg a -> a | _ -> "")
+    >>| (function Lex.Arg a -> Ast.encode_arg a | _ -> 0)
 
 let parse_num =
     select (function Lex.Num _ -> true | _ -> false)

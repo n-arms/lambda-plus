@@ -1,23 +1,35 @@
 open Parse
-open Stdio
 open Base
-let result = parse_expr (make (Lex.lex "let a = b in let c = d in e" ))
-    (*
-let () = 
-    match result with
-    | Ok out, _ -> (
-            match infer_type out with 
-            | Ok t -> print_endline (string_of_expr_type t)
-            | Error e -> print_endline (Type_unify.string_of_typing_error e))
-    | _ -> print_endline "parse failed"
-*)
-let () = 
+open Stdio
+open Infer
+open Ast
+
+let run_typing_test expr =
+    print_endline (string_of_expr expr);
+    let open Option in
+    match expr 
+    |> infer (Map.empty (module Int)) with
+    | Some (s, t) -> print_endline (Ast.string_of_mono_type (Sub.apply_mono s t))
+    | _ -> print_endline "failed to infer type"
+
+let repl text = 
+    let result = 
+        text
+        |> Lex.lex
+        |> make
+        |> parse_expr in
     match result with
     | Ok out, _ -> 
-            out
-            |> Expr.string_of_expr
-            |> print_endline
-    | Error e, _ -> 
-            e
-            |> Parse.from_parse_error
-            |> print_endline
+            run_typing_test out
+    | _ -> print_endline "failed to parse text"
+
+let rec main _ =
+    let open Option in
+    (In_channel.input_line stdin)
+    >>| (fun line -> repl line)
+    |> value ~default:();
+    main 0
+
+
+
+let _ = main 0
