@@ -43,14 +43,6 @@ let string_of_op = function
 
 let string_of_var_name vn = Int.to_string vn
 
-let rec string_of_expr = function
-    | Num n -> Int.to_string n
-    | App (l, r) -> "(" ^ (string_of_expr l) ^ " " ^ (string_of_expr r) ^ ")"
-    | Func (a, e) -> "(\\" ^ (string_of_var_name a) ^ " -> " ^ (string_of_expr e) ^ ")"
-    | Arg a -> string_of_var_name a
-    | Op o -> string_of_op o
-    | Let (a, e, b) -> "let " ^ (string_of_var_name a) ^ " = " ^ (string_of_expr e) ^ " in " ^ (string_of_expr b)
-    | LetRec (a, e, b) -> "let rec " ^ (string_of_var_name a) ^ " = " ^ (string_of_expr e) ^ " in " ^ (string_of_expr b)
 
 let rec string_of_mono_type = function
     | TVar t -> Int.to_string t
@@ -62,6 +54,15 @@ let rec decode_arg i =
 
 let rec encode_arg s =
     String.fold s ~init:0 ~f:(fun acc c -> acc + ((Char.to_int c) - 97))
+
+let rec string_of_expr = function
+    | Num n -> Int.to_string n
+    | App (l, r) -> "(" ^ (string_of_expr l) ^ " " ^ (string_of_expr r) ^ ")"
+    | Func (a, e) -> "(\\" ^ (decode_arg a) ^ " -> " ^ (string_of_expr e) ^ ")"
+    | Arg a -> decode_arg a
+    | Op o -> string_of_op o
+    | Let (a, e, b) -> "let " ^ (decode_arg a) ^ " = " ^ (string_of_expr e) ^ " in " ^ (string_of_expr b)
+    | LetRec (a, e, b) -> "let rec " ^ (decode_arg a) ^ " = " ^ (string_of_expr e) ^ " in " ^ (string_of_expr b)
 
 let rec string_of_poly_type = 
     let rec join_with_commas f = function

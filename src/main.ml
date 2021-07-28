@@ -3,6 +3,7 @@ open Base
 open Stdio
 open Infer
 open Ast
+open Interpreter
 
 let run_typing_test expr =
     print_endline (string_of_expr expr);
@@ -12,21 +13,30 @@ let run_typing_test expr =
     | Ok (s, t) -> print_endline (Ast.string_of_mono_type (Sub.apply_mono s t))
     | Error e -> print_endline ("Error: "^e)
 
+
 let repl text = 
-    let result = 
-        text
-        |> Lex.lex
-        |> make
-        |> parse_expr in
-    match result with
-    | Ok out, _ -> 
-            run_typing_test out
-    | _ -> print_endline "failed to parse text"
+    let (e, _) =
+    text
+    |> Lex.lex
+    |> make
+    |> parse_expr in
+    e
+    |> Result.map_error ~f:Parse.from_parse_error
+    |> Result.bind ~f:(fun e -> Result.map (infer (Map.empty (module Int)) e) ~f:(fun r -> (e, r)))
+    |> Result.map ~f:(fun (e, (_, t)) -> (e, ":: "^(Ast.string_of_mono_type t)))
+    |> fun r -> (
+        match r with
+        | Ok (e, s) -> print_endline s; Some e
+        | Error e -> print_endline e; None
+    )
+    |> Option.map ~f:(eval (Map.empty (module Int)))
+    |> Option.map ~f:Ast.string_of_expr
+    |> Option.map ~f:print_endline
 
 let rec main _ =
     let open Option in
     (In_channel.input_line stdin)
-    >>| (fun line -> repl line)
+    >>= (fun line -> repl line)
     |> value ~default:();
     main 0
 
