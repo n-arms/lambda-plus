@@ -35,5 +35,6 @@ type poly_type =
 val string_of_op : op -> string
 val string_of_expr : expr -> string
 val string_of_mono_type : mono_type -> string
+val string_of_poly_type : poly_type -> string
 val decode_arg : var_name -> string
 val encode_arg : string -> var_name

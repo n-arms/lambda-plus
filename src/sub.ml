@@ -35,3 +35,12 @@ let apply_poly sub = function
 
 let apply_over_env sub env = 
     Map.map env ~f:(apply_poly sub)
+
+let string_of_env env =
+    let rec join_with_commas f = function
+        | h1::h2::tl -> (f h1)^", "^(join_with_commas f (h2::tl))
+        | [hd] -> (f hd)
+        | [] -> "" in
+    Map.fold env ~init:[] ~f:(fun ~key:k ~data:d acc -> ((Ast.decode_arg k)^" => "^(Ast.string_of_poly_type d))::acc)
+    |>  join_with_commas (fun x -> x)
+    |> fun s -> "{"^s^"}"

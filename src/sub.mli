@@ -11,3 +11,5 @@ val filter : sub -> (Ast.type_var_name -> bool) -> sub
 val apply_mono : sub -> Ast.mono_type -> Ast.mono_type
 val apply_poly : sub -> Ast.poly_type -> Ast.poly_type
 val apply_over_env : sub -> env -> env
+
+val string_of_env : env -> string

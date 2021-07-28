@@ -58,8 +58,17 @@ let rec string_of_mono_type = function
     | TFun (m, n) -> "(" ^ (string_of_mono_type m) ^ " -> " ^ (string_of_mono_type n) ^ ")"
 
 let rec decode_arg i =
-    if i < 26 then (i+65) |> Char.of_int_exn |> String.of_char else (90 |> Char.of_int_exn |> String.of_char)^(decode_arg (i - 25))
+    if i < 26 then (i+97) |> Char.of_int_exn |> String.of_char else (122 |> Char.of_int_exn |> String.of_char)^(decode_arg (i - 25))
 
 let rec encode_arg s =
-    String.fold s ~init:0 ~f:(fun acc c -> acc + ((Char.to_int c)- 65))
+    String.fold s ~init:0 ~f:(fun acc c -> acc + ((Char.to_int c) - 97))
+
+let rec string_of_poly_type = 
+    let rec join_with_commas f = function
+        | h1::h2::tl -> (f h1)^", "^(join_with_commas f (h2::tl))
+        | [hd] -> (f hd)
+        | [] -> "" in
+    function
+    | Mono m -> "forall [] "^(string_of_mono_type m)
+    | Poly (tvns, m) -> "forall ["^(Set.to_list tvns |> join_with_commas decode_arg )^"] "^(string_of_mono_type m)
     

@@ -9,8 +9,8 @@ let run_typing_test expr =
     let open Option in
     match expr 
     |> infer (Map.empty (module Int)) with
-    | Some (s, t) -> print_endline (Ast.string_of_mono_type (Sub.apply_mono s t))
-    | _ -> print_endline "failed to infer type"
+    | Ok (s, t) -> print_endline (Ast.string_of_mono_type (Sub.apply_mono s t))
+    | Error e -> print_endline ("Error: "^e)
 
 let repl text = 
     let result = 

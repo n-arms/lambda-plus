@@ -31,38 +31,64 @@ let rec occurs tvn = function
 
 let rec unify m1 m2 =
     match m1, m2 with
-    | TInt, TInt -> Some []
-    | TVar n1, _ when not (occurs n1 m2) -> Some [n1, m2]
-    | _, TVar n2 when not (occurs n2 m1) -> Some [n2, m1]
+    | TInt, TInt -> Ok []
+    | TVar n1, TVar n2 when n1 = n2 -> Ok []
+    | TVar n1, _ -> 
+            if occurs n1 m2 then 
+                Error (
+                    "cannot unify types "^
+                    (Ast.string_of_mono_type m1)^
+                    " and "^
+                    (Ast.string_of_mono_type m2)^
+                    " because argument \""^
+                    (Ast.decode_arg n1)^
+                    "\" would cause an infinite type")
+            else
+                Ok [n1, m2]
+    | _, TVar n2 ->
+            if occurs n2 m1 then
+                Error (
+                    "cannot unify types "^
+                    (Ast.string_of_mono_type m1)^
+                    " and "^
+                    (Ast.string_of_mono_type m2)^
+                    " because argument \""^
+                    (Ast.decode_arg n2)^
+                    "\" would cause an infinite type")
+            else
+                Ok [n2, m1]
     | TFun (m11, m12), TFun (m21, m22) ->
-            let open Option in
+            let open Result in
             (unify m11 m21)
             >>= fun s1 ->
                 let s = apply_mono s1 in
                 (unify (s m12) (s m22))
                 >>| fun s2 ->  s2 @ s1
-    | _ -> None
+    | _ -> Error ("failed to unify types "^(Ast.string_of_mono_type m1)^" and "^(Ast.string_of_mono_type m2))
 
-let rec infer (env : env) : expr -> (sub * mono_type) option = function
+let rec infer (env : env) : expr -> (sub * mono_type, string) Result.t = function
     | Arg x -> 
-            let open Option in
+            let open Result in
             (Map.find env x)
+            |> of_option ~error:("failed to find argument "^(Ast.decode_arg x)^" in scope "^(Sub.string_of_env env))
             >>| fun t -> ([], inst t)
-    | Num _ -> Some ([], TInt)
+    | Num _ -> Ok ([], TInt)
     | Func (x, e1) -> 
-            let open Option in
+            let open Result in
             let t = TVar (newvar ()) in
             (infer (Map.set env ~key:x ~data:(Mono t)) e1)
             >>| fun (s, t') -> (s, TFun (apply_mono s t, t'))
-    | Let (x, e1, e2) | LetRec (x, e1, e2) -> 
-            let open Option in
+    | Let (x, e1, e2) -> 
+            let open Result in
             (infer env e1)
             >>= fun (s0, t) ->
-                (infer (Map.set env ~key:x ~data:(generalize (apply_over_env s0 env) t)) e2) (* XXX env should be s0 (env) *)
+                (infer (Map.set env ~key:x ~data:(generalize (apply_over_env s0 env) t)) e2)
                 >>| fun (s1, t') ->
                     (s1 @ s0, t')
+    | LetRec (x, e1, e2) ->
+            infer env (Let (x, App (Op Fix, Func (x, e1)), e2))
     | App (e1, e2) -> 
-            let open Option in
+            let open Result in
             (infer env e1)
             >>= fun (s0, t0) ->
                 (infer (apply_over_env s0 env) e2)
@@ -71,8 +97,8 @@ let rec infer (env : env) : expr -> (sub * mono_type) option = function
                     (unify (apply_mono s1 t0) (TFun (t1, t')))
                     >>| fun s2 ->
                         (s2 @ (s1 @ s0), apply_mono s2 t')
-    | Op UnaryMinus -> Some ([], TFun (TInt, TInt))
+    | Op UnaryMinus -> Ok ([], TFun (TInt, TInt))
     | Op Fix -> 
             let t = TVar (newvar ()) in
-            Some ([], TFun (TFun (t, t), t))
-    | Op _ -> Some ([], TFun (TInt, TFun (TInt, TInt)))
+            Ok ([], TFun (TFun (t, t), t))
+    | Op _ -> Ok ([], TFun (TInt, TFun (TInt, TInt)))
