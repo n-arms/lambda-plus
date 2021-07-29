@@ -10,6 +10,9 @@ let generalize env m =
                 | TFun (m1, m2) ->
                         Set.union (fv (Mono m1)) (fv (Mono m2))
                 | TPrim PInt -> Set.empty (module Int)
+                | TProd l ->
+                        List.fold l ~init:(Set.empty (module Int)) ~f:(fun acc x ->
+                            Set.union acc (fv (Mono x)))
                 | TPrim PBool -> Set.empty (module Int))
         | Poly (tvns, m) -> Set.diff (fv (Mono m)) tvns in
     let fvenv env = Map.fold env ~init:(Set.empty (module Int)) ~f:(fun ~key:_ ~data:poly fvset -> Set.union fvset (fv poly)) in
@@ -65,6 +68,16 @@ let rec unify m1 m2 =
                 let s = apply_mono s1 in
                 (unify (s m12) (s m22))
                 >>| fun s2 ->  s2 @ s1
+    | TProd l1, TProd l2 when List.length l1 = List.length l2 ->
+            let open Result in
+            List.zip_exn l1 l2
+            |> List.fold ~init:(Ok []) ~f:(fun acc (x, y) ->
+                    acc
+                    >>= fun s1 ->
+                        (unify (apply_mono s1 x) (apply_mono s1 y))
+                        >>| fun s2 ->
+                            s2 @ s1)
+
     | _ -> Error ("failed to unify types "^(Ast.string_of_mono_type m1)^" and "^(Ast.string_of_mono_type m2))
 
 let rec infer (env : env) : expr -> (sub * mono_type, string) Result.t = function
@@ -104,3 +117,12 @@ let rec infer (env : env) : expr -> (sub * mono_type, string) Result.t = functio
             let t = TVar (newvar ()) in
             Ok ([], TFun (TFun (t, t), t))
     | Op _ -> Ok ([], TFun (TPrim PInt, TFun (TPrim PInt, TPrim PInt)))
+    | Tuple t -> 
+            let open Result in
+            List.fold t ~init:(Ok ([], [])) ~f:(fun acc x ->
+                acc
+                >>= fun (sub, acc) ->
+                    (infer env x) >>| fun (s2, x) ->
+                        (s2 @ sub, x::acc))
+            >>| fun (sub, types) -> (sub, TProd types)
+

@@ -1,4 +1,5 @@
 open Base
+open Util
 
 type var_name = int
 type type_var_name = int
@@ -24,6 +25,7 @@ type expr =
     | Op of op
     | Let of var_name * expr * expr
     | LetRec of var_name * expr * expr
+    | Tuple of expr list
 
 type prim =
     | PBool
@@ -33,6 +35,7 @@ type mono_type =
     | TVar of type_var_name
     | TFun of (mono_type * mono_type)
     | TPrim of prim
+    | TProd of mono_type list
 
 type tvset = Set.M(Int).t
 
@@ -57,12 +60,17 @@ let rec string_of_mono_type = function
     | TPrim PInt -> "Int"
     | TPrim PBool -> "Bool"
     | TFun (m, n) -> "(" ^ (string_of_mono_type m) ^ " -> " ^ (string_of_mono_type n) ^ ")"
+    | TProd l -> 
+            l
+            |> join_with_commas string_of_mono_type
+            |> fun csv -> "("^csv^")"
 
 let rec decode_arg i =
     if i < 26 then (i+97) |> Char.of_int_exn |> String.of_char else (122 |> Char.of_int_exn |> String.of_char)^(decode_arg (i - 25))
 
 let rec encode_arg s =
     String.fold s ~init:0 ~f:(fun acc c -> acc + ((Char.to_int c) - 97))
+
 
 let rec string_of_expr = function
     | Lit (Int i) -> Int.to_string i
@@ -73,12 +81,9 @@ let rec string_of_expr = function
     | Op o -> string_of_op o
     | Let (a, e, b) -> "let " ^ (decode_arg a) ^ " = " ^ (string_of_expr e) ^ " in " ^ (string_of_expr b)
     | LetRec (a, e, b) -> "let rec " ^ (decode_arg a) ^ " = " ^ (string_of_expr e) ^ " in " ^ (string_of_expr b)
+    | Tuple t -> join_with_commas string_of_expr t
 
 let rec string_of_poly_type = 
-    let rec join_with_commas f = function
-        | h1::h2::tl -> (f h1)^", "^(join_with_commas f (h2::tl))
-        | [hd] -> (f hd)
-        | [] -> "" in
     function
     | Mono m -> "forall [] "^(string_of_mono_type m)
     | Poly (tvns, m) -> "forall ["^(Set.to_list tvns |> join_with_commas decode_arg )^"] "^(string_of_mono_type m)

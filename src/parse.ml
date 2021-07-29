@@ -1,5 +1,6 @@
 open Base
 open Ast
+open Util
 
 type t = {rest: Lex.token list; pos: int}
 type parseError = string
@@ -145,3 +146,6 @@ and parse_let (state : t) : (expr, parseError) Result.t*t =
         >>= fun e -> (
             parse_expr
             >>| fun e2 -> f s e e2))))) state
+(*and parse_tuple (state : t) : (expr, parseError) Result.t * t = *)
+
+

@@ -39,4 +39,6 @@ let rec eval (env : expr Map.M(Int).t) expr =
             eval (Map.set env ~key:x ~data:e1) e2 |> debug "evaluated a let cell"
     | LetRec (x, e1, e2) ->
             eval env (Let (x, App (Op Fix, Func (x, e1)), e2)) |> debug "evaluated a let rec cell"
+    | Tuple l ->
+            Tuple (List.map l ~f:(eval env)) |> debug "evaluated a tuple cell "
     | x -> x |> debug "evaluated a cell"

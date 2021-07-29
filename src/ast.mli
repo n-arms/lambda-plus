@@ -24,6 +24,7 @@ type expr =
     | Op of op
     | Let of var_name * expr * expr
     | LetRec of var_name * expr * expr
+    | Tuple of expr list
 
 
 type prim =
@@ -34,6 +35,7 @@ type mono_type =
     | TVar of type_var_name
     | TFun of (mono_type * mono_type)
     | TPrim of prim
+    | TProd of mono_type list
 
 type tvset = Set.M(Int).t
 
