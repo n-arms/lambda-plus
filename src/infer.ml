@@ -119,7 +119,7 @@ let rec infer (env : env) : expr -> (sub * mono_type, string) Result.t = functio
     | Op _ -> Ok ([], TFun (TPrim PInt, TFun (TPrim PInt, TPrim PInt)))
     | Tuple t -> 
             let open Result in
-            List.fold t ~init:(Ok ([], [])) ~f:(fun acc x ->
+            List.fold_right t ~init:(Ok ([], [])) ~f:(fun x acc ->
                 acc
                 >>= fun (sub, acc) ->
                     (infer env x) >>| fun (s2, x) ->
