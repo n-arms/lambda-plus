@@ -32,6 +32,7 @@ type token =
     | Op of op
     | Arg of string
     | Num of string
+    | Bool of bool
     | LPar
     | RPar
 
@@ -39,6 +40,7 @@ let to_string = function
     | Op o -> to_string_op o
     | Arg a -> a
     | Num n -> n
+    | Bool b -> Bool.to_string b
     | LPar -> "("
     | RPar -> ")"
 
@@ -68,6 +70,8 @@ let lex s =
         | 'i'::'n'::tl -> Op In::(lex' tl)
         | 'r'::'e'::'c'::tl -> Op Rec::(lex' tl)
         | 'f'::'i'::'x'::tl -> Op Fix::(lex' tl)
+        | 't'::'r'::'u'::'e'::tl -> Bool true::(lex' tl)
+        | 'f'::'a'::'l'::'s'::'e'::tl -> Bool false::(lex' tl)
         | hd::tl when Char.is_digit hd -> 
                 let out, rest = get_while Char.is_digit (hd::tl)
                 in

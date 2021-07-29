@@ -12,8 +12,12 @@ type op =
     | Mod
     | Fix
 
+type lit =
+    | Bool of bool
+    | Int of int
+
 type expr =
-    | Num of int
+    | Lit of lit
     | App of expr * expr
     | Func of var_name * expr
     | Arg of var_name
@@ -21,10 +25,14 @@ type expr =
     | Let of var_name * expr * expr
     | LetRec of var_name * expr * expr
 
+type prim =
+    | PBool
+    | PInt
+
 type mono_type =
     | TVar of type_var_name
-    | TInt
     | TFun of (mono_type * mono_type)
+    | TPrim of prim
 
 type tvset = Set.M(Int).t
 
@@ -46,7 +54,8 @@ let string_of_var_name vn = Int.to_string vn
 
 let rec string_of_mono_type = function
     | TVar t -> Int.to_string t
-    | TInt -> "Int"
+    | TPrim PInt -> "Int"
+    | TPrim PBool -> "Bool"
     | TFun (m, n) -> "(" ^ (string_of_mono_type m) ^ " -> " ^ (string_of_mono_type n) ^ ")"
 
 let rec decode_arg i =
@@ -56,7 +65,8 @@ let rec encode_arg s =
     String.fold s ~init:0 ~f:(fun acc c -> acc + ((Char.to_int c) - 97))
 
 let rec string_of_expr = function
-    | Num n -> Int.to_string n
+    | Lit (Int i) -> Int.to_string i
+    | Lit (Bool b) -> Bool.to_string b
     | App (l, r) -> "(" ^ (string_of_expr l) ^ " " ^ (string_of_expr r) ^ ")"
     | Func (a, e) -> "(\\" ^ (decode_arg a) ^ " -> " ^ (string_of_expr e) ^ ")"
     | Arg a -> decode_arg a

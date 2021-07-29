@@ -9,7 +9,8 @@ let generalize env m =
                 | TVar n -> Set.singleton (module Int) n
                 | TFun (m1, m2) ->
                         Set.union (fv (Mono m1)) (fv (Mono m2))
-                | TInt -> Set.empty (module Int))
+                | TPrim PInt -> Set.empty (module Int)
+                | TPrim PBool -> Set.empty (module Int))
         | Poly (tvns, m) -> Set.diff (fv (Mono m)) tvns in
     let fvenv env = Map.fold env ~init:(Set.empty (module Int)) ~f:(fun ~key:_ ~data:poly fvset -> Set.union fvset (fv poly)) in
     Poly (Set.diff (fv (Mono m)) (fvenv env), m)
@@ -31,7 +32,7 @@ let rec occurs tvn = function
 
 let rec unify m1 m2 =
     match m1, m2 with
-    | TInt, TInt -> Ok []
+    | TPrim p, TPrim q when let open Base.Poly in p = q -> Ok []
     | TVar n1, TVar n2 when n1 = n2 -> Ok []
     | TVar n1, _ -> 
             if occurs n1 m2 then 
@@ -72,7 +73,8 @@ let rec infer (env : env) : expr -> (sub * mono_type, string) Result.t = functio
             (Map.find env x)
             |> of_option ~error:("failed to find argument "^(Ast.decode_arg x)^" in scope "^(Sub.string_of_env env))
             >>| fun t -> ([], inst t)
-    | Num _ -> Ok ([], TInt)
+    | Lit (Int _) -> Ok ([], TPrim (PInt))
+    | Lit (Bool _) -> Ok ([], TPrim (PBool))
     | Func (x, e1) -> 
             let open Result in
             let t = TVar (newvar ()) in
@@ -97,8 +99,8 @@ let rec infer (env : env) : expr -> (sub * mono_type, string) Result.t = functio
                     (unify (apply_mono s1 t0) (TFun (t1, t')))
                     >>| fun s2 ->
                         (s2 @ (s1 @ s0), apply_mono s2 t')
-    | Op UnaryMinus -> Ok ([], TFun (TInt, TInt))
+    | Op UnaryMinus -> Ok ([], TFun (TPrim PInt, TPrim PInt))
     | Op Fix -> 
             let t = TVar (newvar ()) in
             Ok ([], TFun (TFun (t, t), t))
-    | Op _ -> Ok ([], TFun (TInt, TFun (TInt, TInt)))
+    | Op _ -> Ok ([], TFun (TPrim PInt, TFun (TPrim PInt, TPrim PInt)))

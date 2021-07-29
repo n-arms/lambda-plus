@@ -12,8 +12,12 @@ type op =
     | Mod
     | Fix
 
+type lit =
+    | Bool of bool
+    | Int of int
+
 type expr =
-    | Num of int
+    | Lit of lit
     | App of expr * expr
     | Func of var_name * expr
     | Arg of var_name
@@ -21,10 +25,15 @@ type expr =
     | Let of var_name * expr * expr
     | LetRec of var_name * expr * expr
 
+
+type prim =
+    | PBool
+    | PInt
+
 type mono_type =
     | TVar of type_var_name
-    | TInt
     | TFun of (mono_type * mono_type)
+    | TPrim of prim
 
 type tvset = Set.M(Int).t
 

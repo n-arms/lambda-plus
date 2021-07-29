@@ -24,7 +24,7 @@ let rec apply_mono sub = function
     | Ast.TVar n ->
             (find sub n)
             |> Option.value ~default:(Ast.TVar n)
-    | Ast.TInt as i -> i
+    | Ast.TPrim _ as i -> i
     | Ast.TFun (m1, m2) -> Ast.TFun (apply_mono sub m1, apply_mono sub m2)
 
 let apply_poly sub = function

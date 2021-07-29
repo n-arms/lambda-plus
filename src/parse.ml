@@ -60,6 +60,13 @@ let parse_num =
     select (function Lex.Num _ -> true | _ -> false)
     >>| (function Lex.Num n -> (Int.of_string n) | _ -> 0)
 
+let parse_bool state =
+    match (token (Lex.Bool true)) state with
+    | Ok _, state -> Ok (Lit (Bool true)), state
+    | Error _, _ -> (match (token (Lex.Bool false)) state with
+    | Ok _, state -> Ok (Lit (Bool false)), state
+    | Error e, _ -> Error e, state)
+
 let parse_op {rest;pos} =
     match rest with
     | Lex.Op o::tl -> (
@@ -83,16 +90,18 @@ let rec parse_func state =
         parse_expr >>| fun e -> Func (a, e)) state
 and parse_non_let state =
     match parse_func state with
-    | (Ok f, state) -> (Ok f, state)
+    | Ok f, state -> Ok f, state
     | _ -> (match parse_arg state with
-    | (Ok a, state) -> (Ok (Arg a), state)
+    | Ok a, state -> Ok (Arg a), state
     | _ -> (match parse_paren state with
-    | (Ok p, state) -> (Ok p, state)
+    | Ok p, state -> Ok p, state
     | _ -> (match parse_num state with
-    | (Ok n, state) -> (Ok (Num n), state)
+    | Ok n, state -> Ok (Lit(Int n)), state
+    | _ -> (match parse_bool state with
+    | Ok b, state -> Ok b, state
     | _ -> (match parse_op state with
-    | (Ok o, state) -> (Ok (Op o), state)
-    | (Error e, _) -> (Error e, state)))))
+    | Ok o, state -> Ok (Op o), state
+    | Error e, _ -> Error e, state)))))
 and parse_non_app state =
     match parse_let state with
     | (Ok l, state) -> (Ok l, state)
@@ -100,7 +109,6 @@ and parse_non_app state =
     | (Ok n, state) -> (Ok n, state)
     | (Error e, _) -> (Error e, state))
 and parse_expr state =
-    let open Char in 
     let terms = ref [] in
     let term = ref (parse_non_app state) in
     while (

@@ -16,6 +16,7 @@ type token =
     | Op of op
     | Arg of string
     | Num of string
+    | Bool of bool
     | LPar
     | RPar
 
