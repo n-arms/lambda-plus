@@ -26,6 +26,7 @@ let rec apply_mono sub = function
             |> Option.value ~default:(Ast.TVar n)
     | Ast.TPrim _ as i -> i
     | Ast.TFun (m1, m2) -> Ast.TFun (apply_mono sub m1, apply_mono sub m2)
+    | Ast.TProd l -> Ast.TProd (List.map l ~f:(apply_mono sub))
 
 let apply_poly sub = function
     | Ast.Poly (tvns, m) -> 

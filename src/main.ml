@@ -4,7 +4,6 @@ open Stdio
 open Infer
 open Ast
 open Interpreter
-
 let run_typing_test expr =
     print_endline (string_of_expr expr);
     let open Option in
@@ -43,3 +42,23 @@ let rec main _ =
 
 
 let _ = main 0
+
+(*
+let _ = 
+    let open Option in
+    match (In_channel.input_line stdin) with
+    | Some text ->
+            text
+            |> Lex.lex
+            |> make
+            |> Parse.parse_expr
+            (*|> Parse.parse_non_app*)
+            |> fun (out, state) -> 
+                    out
+                    |> Result.map ~f:Ast.string_of_expr
+                    |> Result.map_error ~f:Parse.from_parse_error
+                    |> fun o -> (match o with | Ok s -> print_endline s | Error e -> print_endline e);
+                    state
+                    |> Parse.to_string
+                    |> print_endline
+    | None -> ()*)

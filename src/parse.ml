@@ -8,13 +8,19 @@ type 'a parser = t -> ('a, parseError) Result.t*t
 
 let from_parse_error p = p
 
+
 let make l = {rest = l; pos = 0}
 
 let to_string {rest; pos} =
     "parsed to pos "^
     (let open Int in to_string pos)^
-    " with leftover "^
-    (List.fold rest ~init:"" ~f:(fun s c -> s^(Lex.to_string c)))
+    " with leftover \""^
+    (List.fold rest ~init:"" ~f:(fun s c -> s^(Lex.to_string c)))^
+    "\""
+
+let debug _msg value =
+    (*Stdio.print_endline (_msg ^ " " ^ (to_string value)); value*)
+    value
 
 let (>>=) p f state = 
     match p state with
@@ -94,9 +100,7 @@ and parse_non_let state =
     | Ok f, state -> Ok f, state
     | _ -> (match parse_arg state with
     | Ok a, state -> Ok (Arg a), state
-    | _ -> (match parse_paren state with
-    | Ok p, state -> Ok p, state
-    | _ -> (match parse_num state with
+    | _ -> (match parse_paren state with | Ok p, state -> Ok p, state | _ -> (match parse_num state with
     | Ok n, state -> Ok (Lit(Int n)), state
     | _ -> (match parse_bool state with
     | Ok b, state -> Ok b, state
@@ -104,32 +108,28 @@ and parse_non_let state =
     | Ok o, state -> Ok (Op o), state
     | Error e, _ -> Error e, state)))))
 and parse_non_app state =
-    match parse_let state with
+    match parse_tuple (state |> debug "parsing maybe tuple: ") with
     | (Ok l, state) -> (Ok l, state)
-    | _ -> (match parse_non_let state with
+    | _ -> (match parse_non_tuple state with
     | (Ok n, state) -> (Ok n, state)
     | (Error e, _) -> (Error e, state))
 and parse_expr state =
-    let terms = ref [] in
-    let term = ref (parse_non_app state) in
-    while (
-        match !term with
-        |(Ok _, _) -> true
-        | _ -> false
-    ) do
-        let (current, state) = !term in
-        terms := current::!terms;
-        term := parse_non_app state
-    done;
-    let open List in
-    let open Result in
-    let (_, new_state) = !term in
-    match rev !terms with
-    | hd::h2::tl -> (Ok (
-        fold_left (h2::tl) ~init:(ok_or_failwith hd) ~f:(fun acc x ->
-            App (acc, ok_or_failwith x))), new_state)
-    | [hd] -> (hd, new_state)
-    | [] -> (Error "failed to parse expr", state)
+    let open Option in
+    let new_state = ref None in
+    unfold ~init:state ~f:(fun state ->
+        new_state := Some state;
+        let current, state = parse_non_app state in
+        Result.ok current
+        >>| fun current ->
+            (current, state))
+    |> List.reduce ~f:(fun a b -> App (a, b))
+    >>= (fun l ->
+        !new_state
+        >>| fun s -> (l, s))
+    |> fun r -> (
+        match r with
+        | Some (l, s) -> Ok l, s
+        | _ -> Error "could not parse at least 1 non-app for application", state)
 and parse_paren state =
     ((token Lex.LPar)
     *> parse_expr
@@ -146,6 +146,28 @@ and parse_let (state : t) : (expr, parseError) Result.t*t =
         >>= fun e -> (
             parse_expr
             >>| fun e2 -> f s e e2))))) state
-(*and parse_tuple (state : t) : (expr, parseError) Result.t * t = *)
-
+and parse_non_tuple (state : t) = 
+    match parse_let state with
+    | (Ok l, state) -> (Ok l, state)
+    | _ -> (match parse_non_let state with
+    | (Ok n, state) -> (Ok n, state)
+    | (Error e, _) -> (Error e, state))
+and parse_tuple (state : t) : (expr, parseError) Result.t * t = 
+    let open Option in
+    match parse_non_tuple state with 
+    | Ok start, new_state -> (
+        let new_state = ref new_state in
+        unfold ~init:!new_state ~f:(fun state ->
+            new_state := state;
+            let (current, state) = ((token (Lex.Op Lex.Comma))
+            *> parse_non_tuple) state in 
+            Result.ok current
+            >>| fun current -> (current, state))
+        |> fun l ->
+                if List.length l >= 1 then
+                    Ok (Tuple (start::l)), !new_state
+                else
+                    Error "could not parse at least 2 terms for a tuple", state
+    )
+    | Error e, _ -> Error e, state
 

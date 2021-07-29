@@ -13,6 +13,7 @@ type op =
     | In
     | Rec
     | Fix
+    | Comma
 
 let to_string_op = function
     | Arrow -> "->"
@@ -27,6 +28,7 @@ let to_string_op = function
     | In -> "in"
     | Rec -> "rec"
     | Fix -> "fix"
+    | Comma -> ","
 
 type token =
     | Op of op
@@ -72,6 +74,7 @@ let lex s =
         | 'f'::'i'::'x'::tl -> Op Fix::(lex' tl)
         | 't'::'r'::'u'::'e'::tl -> Bool true::(lex' tl)
         | 'f'::'a'::'l'::'s'::'e'::tl -> Bool false::(lex' tl)
+        | ','::tl -> Op Comma::(lex' tl)
         | hd::tl when Char.is_digit hd -> 
                 let out, rest = get_while Char.is_digit (hd::tl)
                 in

@@ -11,6 +11,7 @@ type op =
     | In
     | Rec
     | Fix
+    | Comma
 
 type token =
     | Op of op
