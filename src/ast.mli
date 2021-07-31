@@ -12,14 +12,24 @@ type op =
     | Mod
     | Fix
 
+
 type lit =
     | Bool of bool
     | Int of int
 
+type exhaustive_pattern = 
+    | LitPat of lit
+    | VarPat of var_name
+    | ProdPat of exhaustive_pattern list
+
+type pattern =
+    | AllOf of exhaustive_pattern
+    | OneOf of pattern list
+
 type expr =
     | Lit of lit
     | App of expr * expr
-    | Func of var_name * expr
+    | Func of pattern * expr
     | Arg of var_name
     | Op of op
     | Let of var_name * expr * expr
@@ -49,3 +59,5 @@ val string_of_mono_type : mono_type -> string
 val string_of_poly_type : poly_type -> string
 val decode_arg : var_name -> string
 val encode_arg : string -> var_name
+val string_of_exhaustive_pattern : exhaustive_pattern -> string
+val string_of_pattern : pattern -> string

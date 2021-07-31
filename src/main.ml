@@ -40,9 +40,7 @@ let rec main _ =
     main 0
 
 
-
 let _ = main 0
-
 (*
 let _ = 
     let open Option in
@@ -51,11 +49,10 @@ let _ =
             text
             |> Lex.lex
             |> make
-            |> Parse.parse_expr
-            (*|> Parse.parse_non_app*)
+            |> Parse.parse_exhaustive_pattern
             |> fun (out, state) -> 
                     out
-                    |> Result.map ~f:Ast.string_of_expr
+                    |> Result.map ~f:Ast.string_of_exhaustive_pattern
                     |> Result.map_error ~f:Parse.from_parse_error
                     |> fun o -> (match o with | Ok s -> print_endline s | Error e -> print_endline e);
                     state

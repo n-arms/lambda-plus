@@ -54,6 +54,11 @@ let many1 p =
     p >>= (fun out ->
         (many p) >>| (fun l -> out::l))
 
+let (<|>) p q state =
+    match p state with
+    | (Ok _, _) as out -> out
+    | Error _, _ -> q state
+
 
 let select pred = function
     | {rest = hd::tl; pos} when pred hd -> (Ok hd, {rest = tl; pos = pos+1})
@@ -69,9 +74,9 @@ let parse_num =
 
 let parse_bool state =
     match (token (Lex.Bool true)) state with
-    | Ok _, state -> Ok (Lit (Bool true)), state
+    | Ok _, state -> Ok true, state
     | Error _, _ -> (match (token (Lex.Bool false)) state with
-    | Ok _, state -> Ok (Lit (Bool false)), state
+    | Ok _, state -> Ok false, state
     | Error e, _ -> Error e, state)
 
 let parse_op {rest;pos} =
@@ -89,9 +94,38 @@ let parse_op {rest;pos} =
         | _ -> (Error "did not find op token"), old_state)
     | _ -> (Error "did not find op token", {rest;pos})
 
-let rec parse_func state =
+let rec parse_exhaustive_pattern (state : t) : (exhaustive_pattern, parseError) Result.t * t = 
+    ((parse_arg >>| fun a -> VarPat a)
+    <|> (parse_num >>| fun n -> LitPat (Int n))
+    <|> (parse_bool >>| fun b -> LitPat (Bool b))
+    <|> (
+        token Lex.LPar
+        *> parse_exhaustive_pattern
+        >>= fun start ->
+            many (
+                token (Lex.Op Lex.Comma)
+                *> parse_exhaustive_pattern
+            )
+            <* token Lex.RPar
+            >>| fun terms ->
+                if List.length terms = 0 then
+                    start
+                else
+                    ProdPat (start::terms))) state
+
+let parse_pattern = 
+    parse_exhaustive_pattern (* XXX add sum types so this becomes more interesting *)
+    >>| fun ep -> AllOf ep
+
+(*let rec parse_func state =
     ((token (Lex.Op Lex.Lambda))
     *> parse_arg
+    <* (token (Lex.Op Lex.Arrow))
+    >>= fun a ->
+        parse_expr >>| fun e -> Func (a, e)) state*)
+let rec parse_func state =
+    ((token (Lex.Op Lex.Lambda))
+    *> parse_pattern
     <* (token (Lex.Op Lex.Arrow))
     >>= fun a ->
         parse_expr >>| fun e -> Func (a, e)) state
@@ -103,7 +137,7 @@ and parse_non_let state =
     | _ -> (match parse_paren state with | Ok p, state -> Ok p, state | _ -> (match parse_num state with
     | Ok n, state -> Ok (Lit(Int n)), state
     | _ -> (match parse_bool state with
-    | Ok b, state -> Ok b, state
+    | Ok b, state -> Ok (Lit (Bool b)), state
     | _ -> (match parse_op state with
     | Ok o, state -> Ok (Op o), state
     | Error e, _ -> Error e, state)))))

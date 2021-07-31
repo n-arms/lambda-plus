@@ -2,6 +2,9 @@ open Base
 open Ast
 open Sub
 
+let debug msg value =
+    Stdio.print_endline (msg ^ " " ^ (string_of_env value)); value
+
 let generalize env m =
     let rec fv = function
         | Mono t ->
@@ -32,6 +35,20 @@ let rec occurs tvn = function
     | TFun (m1, m2) when occurs tvn m1 || occurs tvn m2 -> true
     | _ -> false
 
+let rec infer_exhaustive_pattern : exhaustive_pattern -> sub * mono_type = function
+    | VarPat v -> 
+            let t = TVar (newvar ()) in
+            Stdio.print_endline ("found variable pattern"); ([v, t], t)
+    | LitPat (Int _) -> ([], TPrim PInt)
+    | LitPat (Bool _) -> ([], TPrim PBool)
+    | ProdPat p -> 
+            let (sub, t) = List.map p ~f:infer_exhaustive_pattern
+            |> List.unzip in
+            (List.fold sub ~init:[] ~f:(@), TProd t)
+
+let rec infer_pattern = function
+    | OneOf _ -> Error "pattern not exhaustive"
+    | AllOf p -> Ok (infer_exhaustive_pattern p)
 
 let rec unify m1 m2 =
     match m1, m2 with
@@ -90,9 +107,10 @@ let rec infer (env : env) : expr -> (sub * mono_type, string) Result.t = functio
     | Lit (Bool _) -> Ok ([], TPrim (PBool))
     | Func (x, e1) -> 
             let open Result in
-            let t = TVar (newvar ()) in
-            (infer (Map.set env ~key:x ~data:(Mono t)) e1)
-            >>| fun (s, t') -> (s, TFun (apply_mono s t, t'))
+            (infer_pattern x)
+            >>= fun (sub, pt) ->
+                (infer (List.fold sub ~init:env ~f:(fun acc (v, t) -> Map.set acc ~key:v ~data:(Mono t))) e1)
+                >>| fun (s, t') -> (s, TFun (apply_mono s pt, t'))
     | Let (x, e1, e2) -> 
             let open Result in
             (infer env e1)
@@ -101,7 +119,7 @@ let rec infer (env : env) : expr -> (sub * mono_type, string) Result.t = functio
                 >>| fun (s1, t') ->
                     (s1 @ s0, t')
     | LetRec (x, e1, e2) ->
-            infer env (Let (x, App (Op Fix, Func (x, e1)), e2))
+            infer env (Let (x, App (Op Fix, Func (AllOf (VarPat x), e1)), e2))
     | App (e1, e2) -> 
             let open Result in
             (infer env e1)

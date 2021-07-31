@@ -18,4 +18,4 @@ val many1 : 'a parser -> 'a list parser
 val select : (Lex.token -> bool) -> Lex.token parser
 
 val parse_expr : expr parser
-val parse_non_app : expr parser
+val parse_exhaustive_pattern : exhaustive_pattern parser
